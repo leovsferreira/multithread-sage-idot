@@ -14,8 +14,6 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-RUN python3 -c "from ultralytics import YOLO; model = YOLO('yolov8n.pt'); print('Model downloaded successfully')"
-
 COPY . .
 
 CMD ["python3", "main.py"]
