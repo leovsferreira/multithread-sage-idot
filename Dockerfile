@@ -14,6 +14,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
 
+COPY yolov8n.pt ./models/yolov8n.pt
 COPY . .
 
 CMD ["python3", "main.py"]
