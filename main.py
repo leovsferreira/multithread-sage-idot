@@ -27,13 +27,7 @@ def detect_objects(image, model):
     return detections
 
 def main():
-    model_path = "/app/models/yolov8n.pt"
-    if not os.path.exists(model_path):
-        print(f"Model file not found at {model_path}, downloading...")
-        model = YOLO("yolov8n.pt")
-    else:
-        print(f"Loading model from {model_path}")
-        model = YOLO(model_path)
+    model = YOLO("yolov8n.pt")
     
     with Plugin() as plugin:
         with Camera("bottom_camera") as camera:
