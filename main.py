@@ -36,7 +36,7 @@ def main():
         model = YOLO(model_path)
     
     with Plugin() as plugin:
-        with Camera() as camera:
+        with Camera("bottom_camera") as camera:
             snapshot = camera.snapshot()
         
         timestamp = snapshot.timestamp
