@@ -1,4 +1,2 @@
 # for additional pywaggle install options, see: https://github.com/waggle-sensor/pywaggle#installation-guides
-opencv-python-headless==4.8.1.78
-ultralytics
-pywaggle
+pywaggle[all]==0.56.0
