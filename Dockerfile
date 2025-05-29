@@ -30,6 +30,8 @@ RUN pip3 install pywaggle[all]==0.56.0
 
 RUN pip3 install ultralytics
 
+RUN python3.8 -c "from ultralytics import YOLO; YOLO('yolov8n.pt')"
+
 ENV DEBIAN_FRONTEND=dialog
 
 WORKDIR /app
