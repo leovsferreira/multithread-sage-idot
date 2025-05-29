@@ -1,13 +1,16 @@
-name: "my-amazing-app-name"
-version: "0.1.0"
-description: "My really amazing app!"
+name: yolov8-sage
+version: 0.1.0
+description: uses yolov8 to identify objects in the image
 keywords: ""
-authors: "My name"
+authors: Leonardo Ferreira
 collaborators: ""
 funding: ""
 license: ""
-homepage: ""
+homepage: https://github.com/leovsferreira/yolov8-sage.git
 source:
   architectures:
-    - "linux/amd64"
-    - "linux/arm64"
+    - linux/amd64
+    - linux/arm64
+  url: https://github.com/leovsferreira/yolov8-sage.git
+  branch: main
+namespace: lferr10
