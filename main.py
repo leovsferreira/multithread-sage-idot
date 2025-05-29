@@ -1,5 +1,7 @@
 from ultralytics import YOLO
 import json
+import traceback
+import sys
 
 from waggle.plugin import Plugin
 from waggle.data.vision import Camera
@@ -27,27 +29,51 @@ def detect_objects(image, model):
 
 
 def main():
-    model = YOLO("yolov8n.pt")
-    
     with Plugin() as plugin:
-        with Camera("bottom_camera") as camera:
-            snapshot = camera.snapshot()
-        
-        timestamp = snapshot.timestamp
-        detections = detect_objects(snapshot.data, model)
-        
-        class_counts = {}
-        for det in detections:
-            class_name = det["class"]
-            class_counts[class_name] = class_counts.get(class_name, 0) + 1
-        
-        detection_data = {
-            "detections": detections,
-            "counts": class_counts,
-            "total_objects": len(detections)
-        }
-        
-        plugin.publish("object.detections", json.dumps(detection_data), timestamp=timestamp)
+        try:
+            model = YOLO("yolov8n.pt")
+            
+            with Camera("bottom_camera") as camera:
+                snapshot = camera.snapshot()
+            
+            timestamp = snapshot.timestamp
+            
+            detections = detect_objects(snapshot.data, model)
+            
+            class_counts = {}
+            for det in detections:
+                class_name = det["class"]
+                class_counts[class_name] = class_counts.get(class_name, 0) + 1
+            
+            detection_data = {
+                "detections": detections,
+                "counts": class_counts,
+                "total_objects": len(detections)
+            }
+            
+            plugin.publish("object.detections", json.dumps(detection_data), timestamp=timestamp)
+            
+        except Exception as e:
+            try:
+                error_timestamp = timestamp
+            except NameError:
+                import time
+                error_timestamp = time.time_ns()
+            
+            error_data = {
+                "status": "error",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "traceback": traceback.format_exc()
+            }
+            
+            plugin.publish("plugin.error", json.dumps(error_data), timestamp=error_timestamp)
+            
+            print(f"Error in plugin: {e}", file=sys.stderr)
+            traceback.print_exc()
+            
+            raise
+
 
 if __name__ == "__main__":
     main()
