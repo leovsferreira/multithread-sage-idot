@@ -62,7 +62,7 @@ def main():
 
             error_data = {
                 "status": "error",
-                "error_type": type(e).name,
+                "error_type": type(e).__name__,
                 "error_message": str(e),
                 "traceback": traceback.format_exc()
             }
