@@ -2,6 +2,7 @@ from ultralytics import YOLO
 import json
 import traceback
 import sys
+import os
 import pytz
 from datetime import datetime
 
@@ -99,6 +100,7 @@ def main():
             traceback.print_exc()
 
             raise
-
+    os._exit(0)
+    
 if __name__ == "__main__":
     main()

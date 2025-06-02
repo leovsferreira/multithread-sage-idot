@@ -1,5 +1,5 @@
 name: yolov8-sage
-version: 0.2.0
+version: 0.3.0
 description: uses yolov8 to identify objects in the image
 keywords: ""
 authors: Leonardo Ferreira
