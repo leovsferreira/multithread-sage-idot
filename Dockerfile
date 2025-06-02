@@ -1,18 +1,17 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=America/Chicago
 
 RUN apt-get update && apt-get install -y \
-    software-properties-common \
-    && add-apt-repository ppa:deadsnakes/ppa \
-    && apt-get update && apt-get install -y \
     python3.9 \
     python3.9-dev \
-    python3.9-distutils \
     python3-pip \
+    python3.9-distutils \
     wget \
     git \
+    cmake \
+    build-essential \
     libgl1-mesa-glx \
     libglib2.0-0 \
     libsm6 \
@@ -27,7 +26,7 @@ RUN ln -sf /usr/bin/python3.9 /usr/bin/python
 
 RUN python3.9 -m pip install --upgrade pip
 
-RUN pip3 install opencv-python==4.8.0.74 numpy
+RUN pip3 install "numpy<2" opencv-python==4.8.0.74
 RUN pip3 install pywaggle[all]==0.56.0
 RUN pip3 install ultralytics
 RUN pip3 install pytz
