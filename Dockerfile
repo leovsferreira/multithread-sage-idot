@@ -1,17 +1,18 @@
-FROM ubuntu:22.04
+FROM ubuntu:20.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=America/Chicago
 
 RUN apt-get update && apt-get install -y \
+    software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y \
     python3.9 \
     python3.9-dev \
-    python3-pip \
     python3.9-distutils \
+    python3-pip \
     wget \
     git \
-    cmake \
-    build-essential \
     libgl1-mesa-glx \
     libglib2.0-0 \
     libsm6 \
