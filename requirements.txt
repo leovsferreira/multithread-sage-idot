@@ -1,2 +1,6 @@
 # for additional pywaggle install options, see: https://github.com/waggle-sensor/pywaggle#installation-guides
 pywaggle[all]==0.56.0
+ultralytics
+opencv-python==4.8.0.74
+numpy<2
+pytz
