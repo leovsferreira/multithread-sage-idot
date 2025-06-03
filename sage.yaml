@@ -1,16 +1,16 @@
-name: yolov8-sage
-version: 0.4.0
-description: uses yolov8 to identify objects in the image
+name: multithread-sage-idot
+version: 0.1.0
+description: uses multiple OD models with multithreading to identify objects in the image
 keywords: ""
 authors: Leonardo Ferreira
 collaborators: ""
 funding: ""
 license: ""
-homepage: https://github.com/leovsferreira/yolov8-sage.git
+homepage: https://github.com/leovsferreira/multithread-sage-idot.git
 source:
   architectures:
     - linux/amd64
     - linux/arm64
-  url: https://github.com/leovsferreira/yolov8-sage.git
+  url: https://github.com/leovsferreira/multithread-sage-idot.git
   branch: main
 namespace: lferr10

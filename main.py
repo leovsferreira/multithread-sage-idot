@@ -131,7 +131,6 @@ def main():
                 else:
                     break
             
-            # Publish timing summary
             plugin_finish_time = get_chicago_time()
             timing_summary = {
                 "plugin_start_time_chicago": plugin_start_time,
