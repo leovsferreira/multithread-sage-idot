@@ -5,6 +5,8 @@ import os
 import pytz
 import time
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import multiprocessing
 
 from waggle.plugin import Plugin
 from waggle.data.vision import Camera
@@ -18,8 +20,35 @@ def get_chicago_time():
     return datetime.now(chicago_tz).isoformat()
 
 
-def run_detection_cycle(plugin, models):
-    """Run a single detection cycle with all models"""
+def run_model_detection(model_name, model_instance, image_data, plugin, timestamp):
+    """Run detection for a single model - used for parallel execution"""
+    try:
+        detection_result = model_instance.detect(image_data)
+        
+        plugin.publish(
+            f"object.detections.{model_name.lower()}", 
+            json.dumps(detection_result), 
+            timestamp=timestamp
+        )
+        
+        return model_name, detection_result, None
+    except Exception as e:
+        error_data = {
+            "model": model_name,
+            "error_type": type(e).__name__,
+            "error_message": str(e)
+        }
+        plugin.publish(
+            f"model.error.{model_name.lower()}", 
+            json.dumps(error_data), 
+            timestamp=timestamp
+        )
+        print(f"Error in {model_name}: {e}", file=sys.stderr)
+        return model_name, None, error_data
+
+
+def run_detection_cycle_parallel(plugin, models, max_workers=3):
+    """Run a single detection cycle with all models in parallel"""
     with Camera("bottom_camera") as camera:
         snapshot = camera.snapshot()
     
@@ -33,33 +62,33 @@ def run_detection_cycle(plugin, models):
     plugin.upload_file(image_filename, timestamp=timestamp)
     
     all_results = {}
-    for model_name, model_instance in models.items():
-        try:
-            detection_result = model_instance.detect(snapshot.data)
-            all_results[model_name] = detection_result
-            
-            plugin.publish(
-                f"object.detections.{model_name.lower()}", 
-                json.dumps(detection_result), 
-                timestamp=timestamp
-            )
-        except Exception as e:
-            error_data = {
-                "model": model_name,
-                "error_type": type(e).__name__,
-                "error_message": str(e)
-            }
-            plugin.publish(
-                f"model.error.{model_name.lower()}", 
-                json.dumps(error_data), 
-                timestamp=timestamp
-            )
-            print(f"Error in {model_name}: {e}", file=sys.stderr)
+    cycle_start = time.time()
+    
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_model = {
+            executor.submit(
+                run_model_detection, 
+                model_name, 
+                model_instance, 
+                snapshot.data, 
+                plugin, 
+                timestamp
+            ): model_name 
+            for model_name, model_instance in models.items()
+        }
+        
+        for future in as_completed(future_to_model):
+            model_name, result, error = future.result()
+            if result is not None:
+                all_results[model_name] = result
+    
+    parallel_duration = time.time() - cycle_start
     
     combined_data = {
         "image_timestamp_chicago": chicago_snapshot_time,
         "image_timestamp_ns": timestamp,
-        "models_results": all_results
+        "models_results": all_results,
+        "parallel_execution_time_seconds": parallel_duration
     }
     plugin.publish("object.detections.all", json.dumps(combined_data), timestamp=timestamp)
     
@@ -68,14 +97,18 @@ def run_detection_cycle(plugin, models):
     except:
         pass
     
-    return timestamp
+    return timestamp, parallel_duration
 
 
 def main():
     plugin_start_time = get_chicago_time()
     
+    num_cores = multiprocessing.cpu_count()
+    max_workers = min(3, num_cores, 3)
+    
     with Plugin() as plugin:
         try:
+            print(f"Initializing models with {max_workers} parallel workers...")
             models = {
                 "YOLOv8n": YOLOv8n(),
                 "YOLOv5n": YOLOv5n(),
@@ -86,14 +119,13 @@ def main():
             
             start_time = time.time()
             max_duration = 55 
-            interval = 20
+            interval = 10 
             
             while (time.time() - start_time) < max_duration:
-                cycle_start = time.time()
+                timestamp, cycle_duration = run_detection_cycle_parallel(
+                    plugin, models, max_workers
+                )
                 
-                run_detection_cycle(plugin, models)
-                
-                cycle_duration = time.time() - cycle_start
                 execution_times.append(cycle_duration)
                 
                 elapsed = time.time() - start_time
@@ -105,13 +137,16 @@ def main():
                 else:
                     break
             
+            # Publish timing summary
             plugin_finish_time = get_chicago_time()
             timing_summary = {
                 "plugin_start_time_chicago": plugin_start_time,
                 "plugin_finish_time_chicago": plugin_finish_time,
                 "total_cycles": len(execution_times),
                 "average_cycle_time_seconds": sum(execution_times) / len(execution_times) if execution_times else 0,
-                "cycle_times_seconds": execution_times
+                "cycle_times_seconds": execution_times,
+                "parallel_workers": max_workers,
+                "cpu_cores_available": num_cores
             }
             
             plugin.publish("plugin.timing.summary", json.dumps(timing_summary))
