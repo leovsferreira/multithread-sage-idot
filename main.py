@@ -20,11 +20,10 @@ def get_chicago_time():
     return datetime.now(chicago_tz).isoformat()
 
 
-def run_model_detection(model_name, model_instance, image_data, plugin, timestamp):
+def run_model_detection(model_name, model_instance, image_data):
     """Run detection for a single model - used for parallel execution"""
     try:
         detection_result = model_instance.detect(image_data)
-        
         return model_name, detection_result, None
     except Exception as e:
         error_data = {
@@ -32,11 +31,6 @@ def run_model_detection(model_name, model_instance, image_data, plugin, timestam
             "error_type": type(e).__name__,
             "error_message": str(e)
         }
-        plugin.publish(
-            f"model.error.{model_name.lower()}", 
-            json.dumps(error_data), 
-            timestamp=timestamp
-        )
         print(f"Error in {model_name}: {e}", file=sys.stderr)
         return model_name, None, error_data
 
@@ -64,9 +58,7 @@ def run_detection_cycle_parallel(plugin, models, max_workers=3):
                 run_model_detection, 
                 model_name, 
                 model_instance, 
-                snapshot.data, 
-                plugin, 
-                timestamp
+                snapshot.data
             ): model_name 
             for model_name, model_instance in models.items()
         }
@@ -112,7 +104,7 @@ def main():
             execution_times = []
             
             start_time = time.time()
-            max_duration = 55 
+            max_duration = 55
             interval = 5
             
             while (time.time() - start_time) < max_duration:
