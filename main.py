@@ -25,12 +25,6 @@ def run_model_detection(model_name, model_instance, image_data, plugin, timestam
     try:
         detection_result = model_instance.detect(image_data)
         
-        plugin.publish(
-            f"object.detections.{model_name.lower()}", 
-            json.dumps(detection_result), 
-            timestamp=timestamp
-        )
-        
         return model_name, detection_result, None
     except Exception as e:
         error_data = {
@@ -119,7 +113,7 @@ def main():
             
             start_time = time.time()
             max_duration = 55 
-            interval = 10 
+            interval = 5
             
             while (time.time() - start_time) < max_duration:
                 timestamp, cycle_duration = run_detection_cycle_parallel(
