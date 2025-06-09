@@ -1,7 +1,6 @@
 import json
 import traceback
 import sys
-import os
 import pytz
 import time
 from datetime import datetime
@@ -45,10 +44,6 @@ def run_detection_cycle_parallel(plugin, models, max_workers=3):
     snapshot_dt = datetime.fromtimestamp(timestamp / 1e9, tz=pytz.UTC)
     chicago_snapshot_time = snapshot_dt.astimezone(pytz.timezone('America/Chicago')).isoformat()
     
-    image_filename = f"detection_image_{int(timestamp)}.jpg"
-    snapshot.save(image_filename)
-    plugin.upload_file(image_filename, timestamp=timestamp)
-    
     all_results = {}
     cycle_start = time.time()
     
@@ -67,6 +62,12 @@ def run_detection_cycle_parallel(plugin, models, max_workers=3):
             model_name, result, error = future.result()
             if result is not None:
                 all_results[model_name] = result
+            else:
+                plugin.publish(
+                    f"model.error.{model_name.lower()}", 
+                    json.dumps(error), 
+                    timestamp=timestamp
+                )
     
     parallel_duration = time.time() - cycle_start
     
@@ -77,11 +78,6 @@ def run_detection_cycle_parallel(plugin, models, max_workers=3):
         "parallel_execution_time_seconds": parallel_duration
     }
     plugin.publish("object.detections.all", json.dumps(combined_data), timestamp=timestamp)
-    
-    try:
-        os.remove(image_filename)
-    except:
-        pass
     
     return timestamp, parallel_duration
 
@@ -104,8 +100,8 @@ def main():
             execution_times = []
             
             start_time = time.time()
-            max_duration = 55
-            interval = 5
+            max_duration = (24 * 60 * 60) - 3
+            interval = 3
             
             while (time.time() - start_time) < max_duration:
                 timestamp, cycle_duration = run_detection_cycle_parallel(
