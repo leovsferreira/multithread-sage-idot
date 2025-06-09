@@ -1,5 +1,5 @@
 name: multithread-sage-idot
-version: 0.2.0
+version: 0.3.0
 description: uses multiple OD models with multithreading to identify objects in the image
 keywords: ""
 authors: Leonardo Ferreira
