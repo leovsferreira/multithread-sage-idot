@@ -83,32 +83,25 @@ def run_detection_cycle_parallel(plugin, models, max_workers=3):
 
 
 def main():
-    plugin_start_time = get_chicago_time()
-    
     num_cores = multiprocessing.cpu_count()
     max_workers = min(3, num_cores, 3)
     
     with Plugin() as plugin:
         try:
-            print(f"Initializing models with {max_workers} parallel workers...")
             models = {
                 "YOLOv8n": YOLOv8n(),
                 "YOLOv5n": YOLOv5n(),
                 "YOLOv10n": YOLOv10n()
             }
             
-            execution_times = []
-            
             start_time = time.time()
-            max_duration = (24 * 60 * 60) - 3
+            max_duration = (60 * 60) - 3
             interval = 3
             
             while (time.time() - start_time) < max_duration:
                 timestamp, cycle_duration = run_detection_cycle_parallel(
                     plugin, models, max_workers
                 )
-                
-                execution_times.append(cycle_duration)
                 
                 elapsed = time.time() - start_time
                 next_cycle_time = ((int(elapsed / interval) + 1) * interval)
@@ -119,19 +112,6 @@ def main():
                 else:
                     break
             
-            plugin_finish_time = get_chicago_time()
-            timing_summary = {
-                "plugin_start_time_chicago": plugin_start_time,
-                "plugin_finish_time_chicago": plugin_finish_time,
-                "total_cycles": len(execution_times),
-                "average_cycle_time_seconds": sum(execution_times) / len(execution_times) if execution_times else 0,
-                "cycle_times_seconds": execution_times,
-                "parallel_workers": max_workers,
-                "cpu_cores_available": num_cores
-            }
-            
-            plugin.publish("plugin.timing.summary", json.dumps(timing_summary))
-            
         except Exception as e:
             error_data = {
                 "status": "critical_error",
@@ -141,9 +121,6 @@ def main():
             }
             
             plugin.publish("plugin.error", json.dumps(error_data))
-            
-            print(f"Critical error in plugin: {e}", file=sys.stderr)
-            traceback.print_exc()
             raise
     
     sys.exit(0)
