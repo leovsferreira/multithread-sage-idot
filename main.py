@@ -89,7 +89,7 @@ def main():
             }
             
             start_time = time.time()
-            max_duration = 58
+            max_duration = 55
             cycle_count = 0
             
             publish_image_this_minute = should_publish_image()
