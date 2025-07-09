@@ -6,17 +6,12 @@ import time
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import multiprocessing
+from collections import deque
 
 from waggle.plugin import Plugin
 from waggle.data.vision import Camera
 
 from yolo_models import YOLOv8n, YOLOv5n, YOLOv10n
-
-
-def get_chicago_time():
-    """Get current time in Chicago timezone"""
-    chicago_tz = pytz.timezone('America/Chicago')
-    return datetime.now(chicago_tz).isoformat()
 
 
 def run_model_detection(model_name, model_instance, image_data):
@@ -25,27 +20,21 @@ def run_model_detection(model_name, model_instance, image_data):
         detection_result = model_instance.detect(image_data)
         return model_name, detection_result, None
     except Exception as e:
-        error_data = {
+        return model_name, None, {
             "model": model_name,
             "error_type": type(e).__name__,
             "error_message": str(e)
         }
-        print(f"Error in {model_name}: {e}", file=sys.stderr)
-        return model_name, None, error_data
 
 
-def run_detection_cycle_parallel(plugin, models, max_workers=3):
+def run_detection_cycle_parallel(models, max_workers=3):
     """Run a single detection cycle with all models in parallel"""
     with Camera("bottom_camera") as camera:
         snapshot = camera.snapshot()
     
     timestamp = snapshot.timestamp
-    
-    snapshot_dt = datetime.fromtimestamp(timestamp / 1e9, tz=pytz.UTC)
-    chicago_snapshot_time = snapshot_dt.astimezone(pytz.timezone('America/Chicago')).isoformat()
-    
     all_results = {}
-    cycle_start = time.time()
+    errors = []
     
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_model = {
@@ -62,32 +51,45 @@ def run_detection_cycle_parallel(plugin, models, max_workers=3):
             model_name, result, error = future.result()
             if result is not None:
                 all_results[model_name] = result
-            else:
-                plugin.publish(
-                    f"model.error.{model_name.lower()}", 
-                    json.dumps(error), 
-                    timestamp=timestamp
-                )
+            elif error:
+                errors.append(error)
     
-    parallel_duration = time.time() - cycle_start
-    
-    combined_data = {
-        "image_timestamp_chicago": chicago_snapshot_time,
-        "image_timestamp_ns": timestamp,
-        "models_results": all_results,
-        "parallel_execution_time_seconds": parallel_duration
-    }
-    plugin.publish("object.detections.all", json.dumps(combined_data), timestamp=timestamp)
-    
-    return timestamp, parallel_duration
+    return timestamp, all_results, errors
+
+
+def batch_publish_results(plugin, results_queue):
+    """Publish all queued results in batch"""
+    while results_queue:
+        timestamp, results, errors = results_queue.popleft()
+        
+        # Convert timestamp for publishing
+        snapshot_dt = datetime.fromtimestamp(timestamp / 1e9, tz=pytz.UTC)
+        chicago_snapshot_time = snapshot_dt.astimezone(pytz.timezone('America/Chicago')).isoformat()
+        
+        # Publish detection results
+        combined_data = {
+            "image_timestamp_chicago": chicago_snapshot_time,
+            "image_timestamp_ns": timestamp,
+            "models_results": results
+        }
+        plugin.publish("object.detections.all", json.dumps(combined_data), timestamp=timestamp)
+        
+        # Publish any errors
+        for error in errors:
+            plugin.publish(
+                f"model.error.{error['model'].lower()}", 
+                json.dumps(error), 
+                timestamp=timestamp
+            )
 
 
 def main():
     num_cores = multiprocessing.cpu_count()
-    max_workers = min(3, num_cores, 3)
+    max_workers = min(3, num_cores)
     
     with Plugin() as plugin:
         try:
+            # Initialize models once
             models = {
                 "YOLOv8n": YOLOv8n(),
                 "YOLOv5n": YOLOv5n(),
@@ -95,22 +97,35 @@ def main():
             }
             
             start_time = time.time()
-            max_duration = (60 * 60) - 3
-            interval = 3
+            max_duration = 57  # 3 second buffer for publishing
+            results_queue = deque()
             
+            cycle_count = 0
+            
+            # Run inference cycles as fast as possible
             while (time.time() - start_time) < max_duration:
-                timestamp, cycle_duration = run_detection_cycle_parallel(
-                    plugin, models, max_workers
+                timestamp, results, errors = run_detection_cycle_parallel(
+                    models, max_workers
                 )
                 
-                elapsed = time.time() - start_time
-                next_cycle_time = ((int(elapsed / interval) + 1) * interval)
-                sleep_time = next_cycle_time - elapsed
-                
-                if sleep_time > 0 and (elapsed + sleep_time) < max_duration:
-                    time.sleep(sleep_time)
-                else:
-                    break
+                # Queue results instead of publishing immediately
+                results_queue.append((timestamp, results, errors))
+                cycle_count += 1
+            
+            # Batch publish all results at the end
+            print(f"Completed {cycle_count} inference cycles. Publishing results...", file=sys.stderr)
+            publish_start = time.time()
+            batch_publish_results(plugin, results_queue)
+            publish_time = time.time() - publish_start
+            
+            # Publish summary
+            summary_data = {
+                "total_cycles": cycle_count,
+                "total_runtime_seconds": time.time() - start_time,
+                "publish_time_seconds": publish_time,
+                "timestamp_chicago": datetime.now(pytz.timezone('America/Chicago')).isoformat()
+            }
+            plugin.publish("inference.summary", json.dumps(summary_data))
             
         except Exception as e:
             error_data = {
@@ -124,6 +139,10 @@ def main():
             raise
     
     sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
 
 
 if __name__ == "__main__":
