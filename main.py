@@ -77,6 +77,9 @@ def run_detection_cycle_parallel(plugin, models, max_workers=3, publish_image=Fa
 
 
 def main():
+    start_time = time.time()
+    max_duration = 58
+    
     num_cores = multiprocessing.cpu_count()
     max_workers = min(3, num_cores, 3)
     
@@ -88,8 +91,6 @@ def main():
                 "YOLOv10n": YOLOv10n()
             }
             
-            start_time = time.time()
-            max_duration = 55
             image_published = False
             
             while (time.time() - start_time) < max_duration:
