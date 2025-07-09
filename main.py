@@ -32,14 +32,14 @@ def run_model_detection(model_name, model_instance, image_data):
         return model_name, None, error_data
 
 
-def run_detection_cycle_parallel(plugin, models, max_workers=3, is_first_cycle=False, publish_image_this_minute=False):
+def run_detection_cycle_parallel(plugin, models, max_workers=3, publish_image=False):
     """Run a single detection cycle with all models in parallel"""
     with Camera("bottom_camera") as camera:
         snapshot = camera.snapshot()
     
     timestamp = snapshot.timestamp
     
-    if publish_image_this_minute and is_first_cycle:
+    if publish_image:
         snapshot.save("snapshot.jpg")
         plugin.upload_file("snapshot.jpg", timestamp=timestamp)
     
@@ -90,20 +90,19 @@ def main():
             
             start_time = time.time()
             max_duration = 55
-            cycle_count = 0
-            
-            publish_image_this_minute = should_publish_image()
+            image_published = False
             
             while (time.time() - start_time) < max_duration:
-                is_first_cycle = (cycle_count == 0)
+                if should_publish_image() and not image_published:
+                    publish_image = True
+                    image_published = True
+                else:
+                    publish_image = False
                 
                 timestamp = run_detection_cycle_parallel(
                     plugin, models, max_workers, 
-                    is_first_cycle=is_first_cycle,
-                    publish_image_this_minute=publish_image_this_minute
+                    publish_image=publish_image
                 )
-                
-                cycle_count += 1
             
         except Exception as e:
             error_data = {
