@@ -76,7 +76,7 @@ def run_detection_cycle_parallel(plugin, models, max_workers=3, publish_image=Fa
 
 def main():
     start_time = time.time()
-    max_duration = 58
+    max_duration = 3540 
     
     from yolo_models import YOLOv8n, YOLOv5n, YOLOv10n
     
@@ -92,11 +92,15 @@ def main():
             }
             
             image_published = False
+            last_publish_minute = -1
             
             while (time.time() - start_time) < max_duration:
-                if should_publish_image() and not image_published:
+                current_minute = datetime.now().minute
+                
+                if current_minute % 5 == 0 and current_minute != last_publish_minute:
                     publish_image = True
                     image_published = True
+                    last_publish_minute = current_minute
                 else:
                     publish_image = False
                 
