@@ -9,8 +9,6 @@ import multiprocessing
 from waggle.plugin import Plugin
 from waggle.data.vision import Camera
 
-from yolo_models import YOLOv8n, YOLOv5n, YOLOv10n
-
 def should_publish_image():
     """Check if current minute is a multiple of 5"""
     current_minute = datetime.now().minute
@@ -79,6 +77,8 @@ def run_detection_cycle_parallel(plugin, models, max_workers=3, publish_image=Fa
 def main():
     start_time = time.time()
     max_duration = 58
+    
+    from yolo_models import YOLOv8n, YOLOv5n, YOLOv10n
     
     num_cores = multiprocessing.cpu_count()
     max_workers = min(3, num_cores, 3)
