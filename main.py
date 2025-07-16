@@ -76,7 +76,7 @@ def run_detection_cycle_parallel(plugin, models, max_workers=3, publish_image=Fa
 
 def main():
     start_time = time.time()
-    max_duration = 3540 
+    max_duration = 3 * 3600 - 180
     
     from yolo_models import YOLOv8n, YOLOv5n, YOLOv10n
     
